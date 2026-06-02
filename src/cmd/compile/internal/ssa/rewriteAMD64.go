@@ -95699,6 +95699,50 @@ func rewriteValueAMD64_OpCondSelect(v *Value) bool {
 		v.AddArg3(y, x, cond)
 		return true
 	}
+	// match: (CondSelect <t> x y (SETGF (UCOMISD y x)))
+	// cond: is64BitFloat(t)
+	// result: (MINSD x y)
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		if v_2.Op != OpAMD64SETGF {
+			break
+		}
+		v_2_0 := v_2.Args[0]
+		if v_2_0.Op != OpAMD64UCOMISD {
+			break
+		}
+		_ = v_2_0.Args[1]
+		if y != v_2_0.Args[0] || x != v_2_0.Args[1] || !(is64BitFloat(t)) {
+			break
+		}
+		v.reset(OpAMD64MINSD)
+		v.AddArg2(x, y)
+		return true
+	}
+	// match: (CondSelect <t> x y (SETGF (UCOMISS y x)))
+	// cond: is32BitFloat(t)
+	// result: (MINSS x y)
+	for {
+		t := v.Type
+		x := v_0
+		y := v_1
+		if v_2.Op != OpAMD64SETGF {
+			break
+		}
+		v_2_0 := v_2.Args[0]
+		if v_2_0.Op != OpAMD64UCOMISS {
+			break
+		}
+		_ = v_2_0.Args[1]
+		if y != v_2_0.Args[0] || x != v_2_0.Args[1] || !(is32BitFloat(t)) {
+			break
+		}
+		v.reset(OpAMD64MINSS)
+		v.AddArg2(x, y)
+		return true
+	}
 	// match: (CondSelect <t> x y check)
 	// cond: !check.Type.IsFlags() && check.Type.Size() == 8 && (is64BitInt(t) || isPtr(t))
 	// result: (CMOVQNE y x (CMPQconst [0] check))

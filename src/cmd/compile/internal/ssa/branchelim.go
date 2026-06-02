@@ -4,7 +4,10 @@
 
 package ssa
 
-import "cmd/internal/src"
+import (
+	"cmd/compile/internal/types"
+	"cmd/internal/src"
+)
 
 // branchelim tries to eliminate branches by
 // generating CondSelect instructions.
@@ -107,6 +110,22 @@ func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
 	}
 }
 
+// canCondSelectMinF reports whether a float-typed phi can be turned into a
+// CondSelect that lowers to a single hardware min instruction (MINSD/MINSS).
+// trueVal is the phi argument chosen when cond is true, falseVal otherwise.
+// The strict "a < b ? a : b" form matches MINSx exactly, including its NaN
+// and signed-zero behavior, so no fixup is needed.
+func canCondSelectMinF(arch string, t *types.Type, cond, trueVal, falseVal *Value) bool {
+	if arch != "amd64" || !t.IsFloat() {
+		return false
+	}
+	switch cond.Op {
+	case OpLess32F, OpLess64F:
+		return trueVal == cond.Args[0] && falseVal == cond.Args[1]
+	}
+	return false
+}
+
 // elimIf converts the one-way branch starting at dom in f to a conditional move if possible.
 // loadAddr is a set of values which are used to compute the address of a load.
 // Those values are exempt from CMOV generation.
@@ -134,6 +153,9 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 	// Now decide if fusing 'simple' into dom+post
 	// looks profitable.
 
+	// Replace Phi instructions in b with CondSelect instructions
+	swap := (post.Preds[0].Block() == dom) != (dom.Succs[0].Block() == post)
+
 	// Check that there are Phis, and that all of them
 	// can be safely rewritten to CondSelect.
 	hasphis := false
@@ -141,7 +163,13 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 		if v.Op == OpPhi {
 			hasphis = true
 			if !canCondSelect(v, f.Config.arch, loadAddr) {
-				return false
+				trueVal, falseVal := v.Args[0], v.Args[1]
+				if swap {
+					trueVal, falseVal = falseVal, trueVal
+				}
+				if !canCondSelectMinF(f.Config.arch, v.Type, dom.Controls[0], trueVal, falseVal) {
+					return false
+				}
 			}
 		}
 	}
@@ -158,9 +186,6 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 	if len(simple.Values) > maxfuseinsts || !canSpeculativelyExecute(simple) {
 		return false
 	}
-
-	// Replace Phi instructions in b with CondSelect instructions
-	swap := (post.Preds[0].Block() == dom) != (dom.Succs[0].Block() == post)
 	for _, v := range post.Values {
 		if v.Op != OpPhi {
 			continue
@@ -326,12 +351,19 @@ func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 	if len(post.Preds) != 2 || post == b {
 		return false
 	}
+	swap := post.Preds[0].Block() != b.Succs[0].Block()
 	hasphis := false
 	for _, v := range post.Values {
 		if v.Op == OpPhi {
 			hasphis = true
 			if !canCondSelect(v, f.Config.arch, loadAddr) {
-				return false
+				trueVal, falseVal := v.Args[0], v.Args[1]
+				if swap {
+					trueVal, falseVal = falseVal, trueVal
+				}
+				if !canCondSelectMinF(f.Config.arch, v.Type, b.Controls[0], trueVal, falseVal) {
+					return false
+				}
 			}
 		}
 	}
@@ -345,7 +377,6 @@ func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 	}
 
 	// now we're committed: rewrite each Phi as a CondSelect
-	swap := post.Preds[0].Block() != b.Succs[0].Block()
 	for _, v := range post.Values {
 		if v.Op != OpPhi {
 			continue

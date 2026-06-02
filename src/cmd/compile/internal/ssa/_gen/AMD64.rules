@@ -395,6 +395,12 @@
 (CondSelect <t> x y (SET(EQ|NE|L|G|LE|GE|A|B|AE|BE|EQF|NEF|GF|GEF) cond)) && is16BitInt(t)
     => (CMOVW(EQ|NE|LT|GT|LE|GE|HI|CS|CC|LS|EQF|NEF|GTF|GEF) y x cond)
 
+// A "x < y ? x : y" select matches MINSx exactly (NaN and signed zero
+// included), so emit a single instruction. Less(32|64)F x y lowers to
+// SETGF (UCOMISx y x).
+(CondSelect <t> x y (SETGF (UCOMISD y x))) && is64BitFloat(t) => (MINSD x y)
+(CondSelect <t> x y (SETGF (UCOMISS y x))) && is32BitFloat(t) => (MINSS x y)
+
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && (is64BitInt(t) || isPtr(t))
     => (CMOVQNE y x (CMPQconst [0] check))
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && is32BitInt(t)
