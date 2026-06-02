@@ -215,6 +215,25 @@ func Float32Max(a, b float32) float32 {
 	return max(a, b)
 }
 
+// The "if a < b" idiom has the same NaN and signed-zero behavior as a
+// single MINSD/MINSS, so it should compile to one instruction rather
+// than a compare and branch.
+func Float64MinBranch(a, b float64) float64 {
+	// amd64:"MINSD"
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func Float32MinBranch(a, b float32) float32 {
+	// amd64:"MINSS"
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // ------------------------ //
 //  Constant Optimizations  //
 // ------------------------ //
