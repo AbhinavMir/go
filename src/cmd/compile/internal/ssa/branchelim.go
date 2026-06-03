@@ -110,12 +110,14 @@ func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
 	}
 }
 
-// canCondSelectMinF reports whether a float-typed phi can be turned into a
-// CondSelect that lowers to a single hardware min instruction (MINSD/MINSS).
-// trueVal is the phi argument chosen when cond is true, falseVal otherwise.
-// The strict "a < b ? a : b" form matches MINSx exactly, including its NaN
-// and signed-zero behavior, so no fixup is needed.
-func canCondSelectMinF(arch string, t *types.Type, cond, trueVal, falseVal *Value) bool {
+// canCondSelectMinMaxF reports whether a float-typed phi can be turned into a
+// CondSelect that lowers to a single hardware min/max instruction. trueVal is
+// the phi argument chosen when cond is true, falseVal otherwise. The strict
+// forms "a < b ? a : b" (min) and "a < b ? b : a" (max) match MINSx/MAXSx
+// exactly, including their NaN and signed-zero behavior, so no fixup is needed.
+// Greater comparisons are canonicalized to Less with swapped operands, so only
+// Less needs to be matched here.
+func canCondSelectMinMaxF(arch string, t *types.Type, cond, trueVal, falseVal *Value) bool {
 	switch arch {
 	case "amd64", "arm64":
 	default:
@@ -126,7 +128,8 @@ func canCondSelectMinF(arch string, t *types.Type, cond, trueVal, falseVal *Valu
 	}
 	switch cond.Op {
 	case OpLess32F, OpLess64F:
-		return trueVal == cond.Args[0] && falseVal == cond.Args[1]
+		return (trueVal == cond.Args[0] && falseVal == cond.Args[1]) || // min
+			(trueVal == cond.Args[1] && falseVal == cond.Args[0]) // max
 	}
 	return false
 }
@@ -172,7 +175,7 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 				if swap {
 					trueVal, falseVal = falseVal, trueVal
 				}
-				if !canCondSelectMinF(f.Config.arch, v.Type, dom.Controls[0], trueVal, falseVal) {
+				if !canCondSelectMinMaxF(f.Config.arch, v.Type, dom.Controls[0], trueVal, falseVal) {
 					return false
 				}
 			}
@@ -366,7 +369,7 @@ func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 				if swap {
 					trueVal, falseVal = falseVal, trueVal
 				}
-				if !canCondSelectMinF(f.Config.arch, v.Type, b.Controls[0], trueVal, falseVal) {
+				if !canCondSelectMinMaxF(f.Config.arch, v.Type, b.Controls[0], trueVal, falseVal) {
 					return false
 				}
 			}

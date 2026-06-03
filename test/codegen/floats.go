@@ -238,6 +238,26 @@ func Float32MinBranch(a, b float32) float32 {
 	return r
 }
 
+func Float64MaxBranch(a, b float64) float64 {
+	r := b
+	// amd64:"MAXSD"
+	// arm64:"FCSELD"
+	if a > b {
+		r = a
+	}
+	return r
+}
+
+func Float32MaxBranch(a, b float32) float32 {
+	r := b
+	// amd64:"MAXSS"
+	// arm64:"FCSELS"
+	if a > b {
+		r = a
+	}
+	return r
+}
+
 // ------------------------ //
 //  Constant Optimizations  //
 // ------------------------ //

@@ -400,6 +400,9 @@
 // SETGF (UCOMISx y x).
 (CondSelect <t> x y (SETGF (UCOMISD y x))) && is64BitFloat(t) => (MINSD x y)
 (CondSelect <t> x y (SETGF (UCOMISS y x))) && is32BitFloat(t) => (MINSS x y)
+// "x < y ? y : x" is max; the compare operands appear in the other order.
+(CondSelect <t> x y (SETGF (UCOMISD x y))) && is64BitFloat(t) => (MAXSD x y)
+(CondSelect <t> x y (SETGF (UCOMISS x y))) && is32BitFloat(t) => (MAXSS x y)
 
 (CondSelect <t> x y check) && !check.Type.IsFlags() && check.Type.Size() == 8 && (is64BitInt(t) || isPtr(t))
     => (CMOVQNE y x (CMPQconst [0] check))
