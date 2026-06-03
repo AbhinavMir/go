@@ -221,6 +221,7 @@ func Float32Max(a, b float32) float32 {
 func Float64MinBranch(a, b float64) float64 {
 	r := b
 	// amd64:"MINSD"
+	// arm64:"FCSELD"
 	if a < b {
 		r = a
 	}
@@ -230,6 +231,7 @@ func Float64MinBranch(a, b float64) float64 {
 func Float32MinBranch(a, b float32) float32 {
 	r := b
 	// amd64:"MINSS"
+	// arm64:"FCSELS"
 	if a < b {
 		r = a
 	}

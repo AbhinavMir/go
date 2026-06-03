@@ -298,9 +298,15 @@
 (FCMPD x (FMOVDconst [0])) => (FCMPD0 x)
 (FCMPD (FMOVDconst [0]) x) => (InvertFlags (FCMPD0 x))
 
+// Float selects use FCSEL on the FP registers. branchelim only forms these
+// for the "a < b ? a : b" min idiom, whose flag-generating compare is always
+// present, so no TSTW fixup is needed.
+(CondSelect x y boolval) && is64BitFloat(v.Type) && flagArg(boolval) != nil => (FCSELD [boolval.Op] x y flagArg(boolval))
+(CondSelect x y boolval) && is32BitFloat(v.Type) && flagArg(boolval) != nil => (FCSELS [boolval.Op] x y flagArg(boolval))
+
 // CSEL needs a flag-generating argument. Synthesize a TSTW if necessary.
-(CondSelect x y boolval) && flagArg(boolval) != nil => (CSEL [boolval.Op] x y flagArg(boolval))
-(CondSelect x y boolval) && flagArg(boolval) == nil => (CSEL [OpARM64NotEqual] x y (TSTWconst [1] boolval))
+(CondSelect x y boolval) && !v.Type.IsFloat() && flagArg(boolval) != nil => (CSEL [boolval.Op] x y flagArg(boolval))
+(CondSelect x y boolval) && !v.Type.IsFloat() && flagArg(boolval) == nil => (CSEL [OpARM64NotEqual] x y (TSTWconst [1] boolval))
 
 (OffPtr [off] ptr:(SP)) && is32Bit(off) => (MOVDaddr [int32(off)] ptr)
 (OffPtr [off] ptr) => (ADDconst [off] ptr)
@@ -1351,6 +1357,8 @@
 // absorb InvertFlags into conditional instructions
 (CSEL  [cc] x y (InvertFlags cmp)) => (CSEL  [arm64Invert(cc)] x y cmp)
 (CSEL0 [cc] x   (InvertFlags cmp)) => (CSEL0 [arm64Invert(cc)] x   cmp)
+(FCSELD [cc] x y (InvertFlags cmp)) => (FCSELD [arm64Invert(cc)] x y cmp)
+(FCSELS [cc] x y (InvertFlags cmp)) => (FCSELS [arm64Invert(cc)] x y cmp)
 (CSETM [cc]     (InvertFlags cmp)) => (CSETM [arm64Invert(cc)]     cmp)
 (CSINC [cc] x y (InvertFlags cmp)) => (CSINC [arm64Invert(cc)] x y cmp)
 (CSINV [cc] x y (InvertFlags cmp)) => (CSINV [arm64Invert(cc)] x y cmp)

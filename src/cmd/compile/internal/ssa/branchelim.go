@@ -116,7 +116,12 @@ func canCondSelect(v *Value, arch string, loadAddr *sparseSet) bool {
 // The strict "a < b ? a : b" form matches MINSx exactly, including its NaN
 // and signed-zero behavior, so no fixup is needed.
 func canCondSelectMinF(arch string, t *types.Type, cond, trueVal, falseVal *Value) bool {
-	if arch != "amd64" || !t.IsFloat() {
+	switch arch {
+	case "amd64", "arm64":
+	default:
+		return false
+	}
+	if !t.IsFloat() {
 		return false
 	}
 	switch cond.Op {
