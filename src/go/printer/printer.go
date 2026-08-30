@@ -147,6 +147,25 @@ func (p *printer) commentBefore(next token.Position) bool {
 	return p.commentOffset < next.Offset && (!p.impliedSemi || !p.commentNewline)
 }
 
+// commentLineBefore returns the line of the last comment that is printed
+// before the next position in the source code, or 0 if there is no such
+// comment. A comment that starts on a line after the last printed token
+// starts a new line in the output.
+func (p *printer) commentLineBefore(next token.Position) int {
+	// save/restore current p.commentInfo (p.nextComment() modifies it)
+	defer func(info commentInfo) {
+		p.commentInfo = info
+	}(p.commentInfo)
+
+	line := 0
+	for p.commentBefore(next) {
+		list := p.comment.List
+		line = p.lineFor(list[len(list)-1].Pos())
+		p.nextComment()
+	}
+	return line
+}
+
 // commentSizeBefore returns the estimated size of the
 // comments on the same line before the next position.
 func (p *printer) commentSizeBefore(next token.Position) int {

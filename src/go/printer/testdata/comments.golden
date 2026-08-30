@@ -757,6 +757,16 @@ var _ = [][]T{
 	},
 }
 
+// Test case for issue 27574. A comment on the same line as the last list
+// element needs no terminating comma, and neither does a list without a
+// comment before the closing token.
+func issue27574h() {
+	print(0, 1	/* comment */)
+	print(0, 1)
+	_ = []int{0	/* comment */}
+	_ = []int{0}
+}
+
 // TODO: gofmt doesn't add these tabs; make it so that these golden
 // tests run the printer in a way that it's exactly like gofmt.
 

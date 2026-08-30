@@ -155,6 +155,12 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
 		}
 		if isIncomplete {
 			p.print(token.COMMA, blank, "/* "+filteredMsg+" */")
+		} else if mode&commaTerm != 0 && next.IsValid() && endLine < p.commentLineBefore(next) {
+			// A comment on a line after the last entry starts a new line
+			// before the closing token; print a terminating comma so that
+			// the result is valid Go. The indent/unindent pair gives that
+			// comment the proper level of indentation.
+			p.print(token.COMMA, indent, unindent)
 		}
 		return
 	}

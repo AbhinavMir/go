@@ -161,3 +161,42 @@ var _ = []T{
 		}
 	},
 }
+
+// Test cases for issue 27574: a comment on a line after the last list
+// element requires a terminating comma before the closing token.
+func issue27574a() {
+	print("",
+		/* comment */)
+}
+
+func issue27574b() {
+	print(`
+`,
+	/* comment */)
+}
+
+func issue27574c() {
+	print(
+		"",
+		/* comment */)
+}
+
+func issue27574d() {
+	print("", "",
+		/* comment */)
+}
+
+func issue27574e() {
+	_ = []int{0,
+		/* comment */}
+}
+
+func issue27574f() {
+	_ = map[string]int{"a": 0,
+		/* comment */}
+}
+
+func issue27574g() {
+	print(0, 1,	/* comment */
+		/* another comment */)
+}
